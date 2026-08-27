@@ -11,7 +11,7 @@
 🌐 **在线体验 / Live Demo**：https://liyulai1990.github.io/Qr-image-composer/
 🔗 仓库地址 / Repo：https://github.com/liyulai1990/Qr-image-composer
 
-![界面预览](preview.svg)
+![界面预览](screenshot.png)
 
 ## ✨ 特性 / Features
 
