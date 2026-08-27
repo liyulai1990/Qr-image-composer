@@ -1,0 +1,47 @@
+# ============================================================
+# 本 .gitignore 仅面向「图片二维码合成工具」单项发布。
+# 同一工作区内还混有另一个 PDF 二维码提取工具及其调试散件，
+# 这些均不在本次 GitHub 发布范围内，已被忽略。
+# ============================================================
+
+# 先忽略根目录一切内容，再以白名单方式只放行发布所需文件
+*
+!.gitignore
+!LICENSE
+!README.md
+!index.html
+!图片二维码合成工具-用户操作手册.md
+!图片二维码合成工具-开发者手册.md
+
+# --- 显式排除（即便后续调整白名单也不会误带） ---
+
+# 真实业务 PDF（含生产数据，禁止外传）
+DL1507_PROD_H5_20260820.pdf
+
+# 废弃的 Tesseract 模型（当前工具已不使用，且体积较大）
+eng.traineddata
+
+# 调试 / 开发脚本
+*.py
+
+# 调试输出目录
+qr_check/
+
+# 内部笔记与审计报告（非产品文档）
+optimization-notes.md
+fixed-qr-integration-code.md
+index-审计报告.md
+
+# 另一个产品：PDF 二维码提取工具
+pdf-qr-cropper.html
+pdf-qr-cropper-offline.html
+PDF二维码提取工具-*.md
+
+# 测试 / 调试图片
+*.png
+*.jpg
+*.jpeg
+
+# 操作系统垃圾文件
+.DS_Store
+Thumbs.db

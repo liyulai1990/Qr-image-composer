@@ -1,0 +1,1786 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>图片二维码合成工具</title>
+<style>
+  :root{
+    --primary:#2f6fed;
+    --primary-dark:#1a5bd7;
+    --danger:#ff4d4f;
+    --bg:#f5f7fa;
+    --panel-bg:#fff;
+    --panel-border:#e1e5eb;
+    --text:#1f2937;
+    --text-sub:#6b7280;
+    --input-bg:#f9fafb;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; padding:12px 20px; background:var(--panel-bg); border-bottom:1px solid var(--panel-border); }
+  .topbar h1{ margin:0; font-size:18px; }
+  .topbar .badge{ font-size:11px; color:var(--primary); background:#eef4ff; padding:3px 8px; border-radius:20px; border:1px solid #d7e3ff; }
+  .layout{ display:flex; height:calc(100vh - 57px); }
+  .sidebar{ width:400px; min-width:400px; background:var(--panel-bg); border-right:1px solid var(--panel-border); overflow-y:auto; padding:12px; }
+  .stage{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:16px; position:relative; background:#e8ecf1; overflow:hidden; }
+  .card{ background:var(--panel-bg); border:1px solid var(--panel-border); border-radius:10px; padding:12px; margin-bottom:10px; }
+  .card h2{ margin:0 0 10px; font-size:14px; display:flex; align-items:center; gap:6px; }
+  .step{ display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; background:var(--primary); color:#fff; font-size:11px; font-weight:700; }
+  .substep{ display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; border-radius:50%; background:#e5e7eb; color:#374151; font-size:10px; font-weight:700; padding:0 5px; }
+  .field{ display:block; margin-bottom:8px; }
+  .field>span{ display:block; font-size:11.5px; color:var(--text-sub); margin-bottom:3px; }
+  .mini-row{ display:flex; gap:6px; align-items:center; }
+  .mini-row input{ flex:1; }
+  input[type="number"], input[type="text"], select{ width:100%; padding:5px 7px; border:1px solid var(--panel-border); border-radius:6px; background:var(--input-bg); font-size:12px; }
+  input[type="file"]{ padding:4px 0; font-size:11.5px; }
+  .step-btns{ display:flex; gap:3px; }
+  .step-btns button{ width:24px; height:28px; border:1px solid var(--panel-border); border-radius:5px; background:#fff; cursor:pointer; font-size:13px; line-height:1; }
+  .step-btns button:hover{ background:var(--primary); color:#fff; border-color:var(--primary); }
+  .btn{ padding:5px 10px; border:1px solid var(--panel-border); border-radius:6px; background:#fff; cursor:pointer; font-size:12px; transition:all .15s; }
+  .btn:hover{ border-color:var(--primary); color:var(--primary); }
+  .btn.block{ display:block; width:100%; }
+  .btn.ghost{ background:transparent; }
+  .btn.danger{ color:var(--danger); border-color:#ffccc7; }
+  .btn.danger:hover{ background:#fff1f0; }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
+  .btn-row{ display:flex; gap:6px; flex-wrap:wrap; }
+  .hint{ font-size:11px; color:var(--text-sub); margin:4px 0 0; line-height:1.4; }
+  .progress{ height:6px; background:#e5e7eb; border-radius:3px; overflow:hidden; margin:8px 0 4px; }
+  .progress i{ display:block; height:100%; width:0%; background:var(--primary); transition:width .2s; }
+  .progress-text{ font-size:11px; color:var(--text-sub); }
+  .filelist{ max-height:110px; overflow-y:auto; margin-top:6px; border:1px solid var(--panel-border); border-radius:6px; padding:4px; background:var(--input-bg); }
+  .filelist .row{ display:flex; justify-content:space-between; font-size:11px; padding:3px 0; border-bottom:1px dashed var(--panel-border); }
+  .filelist .row:last-child{ border-bottom:none; }
+  .filelist .row .nm{ flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-right:6px; }
+  .filelist .row .meta{ color:var(--text-sub); }
+
+  /* 方向键微调 */
+  .arrow-pad{ display:grid; grid-template-columns:repeat(3,30px); gap:3px; justify-content:center; margin:6px 0; }
+  .arrow-pad .arrow{ width:30px; height:30px; border:1px solid var(--panel-border); border-radius:6px; background:#fff; cursor:pointer; font-size:15px; line-height:1; }
+  .arrow-pad .arrow:hover{ background:var(--primary); color:#fff; border-color:var(--primary); }
+  .arrow-pad .arrow.up{ grid-column:2; }
+  .arrow-pad .arrow.left{ grid-column:1; grid-row:2; }
+  .arrow-pad .arrow.right{ grid-column:3; grid-row:2; }
+  .arrow-pad .arrow.down{ grid-column:2; grid-row:3; }
+  .arrow-center{ grid-column:2; grid-row:2; display:flex; align-items:center; justify-content:center; font-size:9px; color:var(--text-sub); }
+
+/* 位置微调横向布局 */
+.pos-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+.pos-row .pos-hint{ font-size:11px; color:var(--text-sub); line-height:1.4; flex:1; }
+.pos-row .arrow-pad{ margin:0; flex-shrink:0; }
+.pos-inputs{ display:flex; gap:12px; margin-bottom:8px; }
+.pos-inputs label{ display:flex; align-items:center; gap:6px; margin-bottom:0; }
+.pos-inputs label span{ font-size:11.5px; color:var(--text-sub); white-space:nowrap; margin-bottom:0; }
+.pos-inputs input{ width:100px; }
+.pos-panel{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.pos-stack{ display:flex; flex-direction:column; gap:6px; }
+.pos-stack .pos-inputs{ margin-bottom:0; }
+
+  /* 裁剪网格 */
+  .crop-grid{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .mini-field span{ font-size:10.5px; color:var(--text-sub); display:block; margin-bottom:2px; }
+
+  /* 固定二维码折叠 */
+  .section-toggle{ display:flex; align-items:center; justify-content:space-between; cursor:pointer; font-weight:600; font-size:13px; padding:4px 0; border-radius:6px; }
+  .section-toggle:hover{ color:var(--primary); }
+  .fixed-list{ display:flex; flex-direction:column; gap:4px; margin-top:6px; }
+  .fixed-item{ display:flex; align-items:center; justify-content:space-between; padding:5px 8px; border:1px solid var(--panel-border); border-radius:6px; background:var(--input-bg); cursor:pointer; font-size:11.5px; }
+  .fixed-item.active{ border-color:var(--primary); background:#eef4ff; }
+  .fixed-item .name{ flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-right:6px; }
+  .fixed-item .badge{ font-size:10px; color:var(--text-sub); background:var(--panel-bg); padding:1px 5px; border-radius:10px; border:1px solid var(--panel-border); }
+
+  /* 子卡片 */
+  .subcard{ background:#f9fbff; border:1px solid #d7e3ff; border-radius:8px; padding:10px; margin-top:8px; }
+  .subcard-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; gap:8px; }
+  .subcard-head h3{ margin:0; font-size:13px; color:#1e40af; display:flex; align-items:center; gap:5px; }
+  .subcard-head .actions{ display:flex; gap:4px; flex-shrink:0; }
+
+  /* 画布 */
+  .zoom-bar{ display:flex; align-items:center; gap:6px; margin-bottom:8px; background:#fff; padding:6px 10px; border-radius:8px; border:1px solid var(--panel-border); }
+  .zoom-bar input[type="range"]{ flex:1; max-width:220px; }
+  .zoom-label{ min-width:40px; text-align:center; font-size:11px; color:var(--text-sub); }
+  .canvas-wrap{ position:relative; border:1px solid var(--panel-border); border-radius:10px; overflow:auto; max-width:100%; max-height:calc(100% - 72px); background:#fff; box-shadow:0 4px 20px rgba(0,0,0,.06); }
+  .canvas-wrap canvas{ display:block; cursor:grab; }
+  .canvas-wrap canvas.dragging{ cursor:grabbing; }
+  .drop-tip{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(47,111,237,.12); color:var(--primary); font-size:16px; font-weight:600; border:3px dashed var(--primary); border-radius:10px; pointer-events:none; }
+  .canvas-wrap.drag-over .drop-tip{ display:flex; }
+  .stage-info{ margin-top:8px; color:var(--text-sub); font-size:11.5px; text-align:center; max-width:90%; }
+
+  /* 操作说明 */
+  details.help summary{ cursor:pointer; font-size:12px; color:var(--text-sub); user-select:none; }
+  details.help ol{ margin:8px 0 0; padding-left:16px; font-size:11.5px; color:var(--text-sub); line-height:1.5; }
+
+  /* 加载遮罩 */
+  #loadingMask{ position:fixed; inset:0; background:rgba(255,255,255,.92); display:none; flex-direction:column; align-items:center; justify-content:center; z-index:1000; }
+  #loadingMask.show{ display:flex; }
+  .spinner{ width:44px; height:44px; border:4px solid #dbe4ff; border-top-color:var(--primary); border-radius:50%; animation:spin 1s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  #loadingMsg{ margin-top:10px; color:var(--text-sub); font-size:13px; }
+
+  /* toast */
+  #toastBox{ position:fixed; top:70px; right:20px; z-index:1100; display:flex; flex-direction:column; gap:8px; }
+  .toast{ background:#fff; border-left:3px solid var(--primary); box-shadow:0 3px 10px rgba(0,0,0,.12); padding:8px 12px; border-radius:5px; font-size:12px; max-width:300px; animation:slideIn .2s ease; }
+  .toast.warn{ border-left-color:#faad14; }
+  .toast.error{ border-left-color:var(--danger); }
+  .toast.ok{ border-left-color:#52c41a; }
+  @keyframes slideIn{ from{ transform:translateX(100%); opacity:0; } to{ transform:translateX(0); opacity:1; } }
+
+  /* 缩略图总览 */
+  .overview-mask{ position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:1200; padding:20px; }
+  .overview-mask.show{ display:flex; }
+  .overview-panel{ background:#fff; border-radius:12px; width:min(94vw,1200px); height:min(88vh,900px); display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,.25); }
+  .overview-head{ display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-bottom:1px solid var(--panel-border); }
+  .overview-grid{ flex:1; overflow:auto; padding:14px; display:grid; grid-template-columns:repeat(auto-fill,160px); gap:12px; align-content:start; }
+  .overview-cell{ width:160px; height:180px; border:1px solid var(--panel-border); border-radius:8px; overflow:hidden; background:#fff; }
+  .overview-cell .thumb{ width:160px; height:160px; display:flex; align-items:center; justify-content:center; background:#f5f7fa; }
+  .overview-cell .thumb img{ max-width:100%; max-height:100%; object-fit:contain; display:block; }
+  .overview-cell .cap{ height:20px; line-height:20px; padding:0 6px; font-size:8px; color:var(--text-sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; border-top:1px solid var(--panel-border); }
+
+  /* 页脚 */
+  .site-footer{ text-align:center; padding:10px 12px 14px; color:var(--text-sub); font-size:11px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>图片二维码合成工具</h1>
+  <span class="badge">纯前端 · 本地运行 · 文件不上传</span>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+
+    <!-- 操作说明：默认折叠 -->
+    <div class="card">
+      <h2>操作说明</h2>
+      <details class="help">
+        <summary>点击展开 / 收起流程</summary>
+        <ol>
+          <li>上传<b>底图</b>（仅支持单张）；也可直接把图片<b>拖拽</b>到右侧画布区域。</li>
+          <li>在「批量二维码导入」中<b>批量添加二维码</b>，导入后自动出现「定位 / 缩放 / 旋转」与「二维码剪裁」。</li>
+          <li>用<b>方向键</b>或输入框调整位置，可设置缩放 / 旋转；也可直接在画布上拖动二维码。</li>
+          <li>（可选）展开「固定二维码（可选）」，添加在每张导出结果中固定显示的二维码。</li>
+          <li>点击<b>批量导出</b>生成 ZIP，每张导出图分辨率/格式与底图一致，文件名 = 动态二维码原始文件名。</li>
+        </ol>
+      </details>
+    </div>
+
+    <!-- 步骤① 上传底图 -->
+    <div class="card" id="baseCard">
+      <h2><span class="step">1</span>上传底图（单张）</h2>
+      <input type="file" id="baseInput" accept="image/*" />
+      <p class="hint" id="baseHint">支持 PNG / JPG / WebP 等常见格式。仅允许选择 1 张；也可直接把图片拖拽到右侧画布区域。</p>
+      <div id="baseInfo" class="hint"></div>
+    </div>
+
+    <!-- 步骤② 批量二维码导入 -->
+    <div class="card" id="qrCard">
+      <h2><span class="step">2</span>批量二维码导入</h2>
+
+      <!-- 2.1 批量添加二维码 -->
+      <div class="subcard">
+        <div class="subcard-head">
+          <h3><span class="substep">2.1</span>批量添加二维码</h3>
+          <div class="actions">
+            <button class="btn ghost sm" id="clearQrBtn">清空</button>
+          </div>
+        </div>
+        <button type="button" class="btn block" id="addDynamicBtn">批量添加二维码</button>
+        <input type="file" id="qrInput" accept="image/*" multiple style="display:none;" />
+        <p class="hint">批量导入业务二维码，每张独立合成到底图并导出。</p>
+        <div id="qrLoadProgress" style="display:none;">
+          <div class="progress"><i id="qrLoadBar"></i></div>
+          <div class="progress-text" id="qrLoadText">加载中…</div>
+        </div>
+        <div class="filelist" id="qrList" style="display:none;"></div>
+        <p class="hint" id="qrCountHint">尚未导入动态二维码。</p>
+      </div>
+
+      <!-- 2.2 位置调整：未导入动态二维码时隐藏 -->
+      <div class="subcard" id="qrEditSubcard" style="display:none;">
+        <div class="subcard-head">
+          <h3><span class="substep">2.2</span>位置调整</h3>
+          <div class="actions">
+            <button class="btn ghost sm" id="resetBtn">重置位置</button>
+          </div>
+        </div>
+
+        <label class="field">
+          <span>预览二维码</span>
+          <select id="qrSelect" class="btn ghost sm" style="width:100%; padding:5px;"></select>
+        </label>
+
+        <div class="pos-panel">
+          <div class="pos-stack">
+            <div class="pos-inputs">
+              <label><span>横向</span><input type="number" id="xInput" value="0" step="1" style="width:60px;" /></label>
+              <label><span>纵向</span><input type="number" id="yInput" value="0" step="1" style="width:60px;" /></label>
+            </div>
+            <div class="pos-inputs">
+              <label><span>缩放</span><input type="number" id="scaleInput" value="100" step="1" min="1" style="width:60px;" /></label>
+              <label><span>旋转</span><input type="number" id="rotInput" value="0" step="1" style="width:60px;" /></label>
+            </div>
+          </div>
+          <div class="arrow-pad">
+            <button type="button" class="arrow up" data-act="y-" title="上移 1px">↑</button>
+            <button type="button" class="arrow left" data-act="x-" title="左移 1px">←</button>
+            <div class="arrow-center">移动</div>
+            <button type="button" class="arrow right" data-act="x+" title="右移 1px">→</button>
+            <button type="button" class="arrow down" data-act="y+" title="下移 1px">↓</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2.3 二维码剪裁（可选）：未导入动态二维码时隐藏 -->
+      <div class="subcard" id="qrCropSubcard" style="display:none;">
+        <div class="subcard-head">
+          <h3><span class="substep">2.3</span>二维码剪裁（可选）</h3>
+          <div class="actions">
+            <button class="btn ghost sm" id="resetCropBtn">重置剪裁</button>
+          </div>
+        </div>
+        <p class="hint">从二维码四边向内裁剪（像素，按原始尺寸计）；也可直接在画布上拖动虚线框的四边进行裁剪。</p>
+        <div class="crop-grid">
+          <div class="mini-field">
+            <span>左（裁剪）</span>
+            <div class="mini-row">
+              <input type="number" id="cropL" value="0" min="0" step="1" />
+              <div class="step-btns"><button type="button" data-crop="l-">−</button><button type="button" data-crop="l+">＋</button></div>
+            </div>
+          </div>
+          <div class="mini-field">
+            <span>上（裁剪）</span>
+            <div class="mini-row">
+              <input type="number" id="cropT" value="0" min="0" step="1" />
+              <div class="step-btns"><button type="button" data-crop="t-">−</button><button type="button" data-crop="t+">＋</button></div>
+            </div>
+          </div>
+          <div class="mini-field">
+            <span>右（裁剪）</span>
+            <div class="mini-row">
+              <input type="number" id="cropR" value="0" min="0" step="1" />
+              <div class="step-btns"><button type="button" data-crop="r-">−</button><button type="button" data-crop="r+">＋</button></div>
+            </div>
+          </div>
+          <div class="mini-field">
+            <span>下（裁剪）</span>
+            <div class="mini-row">
+              <input type="number" id="cropB" value="0" min="0" step="1" />
+              <div class="step-btns"><button type="button" data-crop="b-">−</button><button type="button" data-crop="b+">＋</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 步骤③ 固定二维码（可选）：整体默认折叠 -->
+    <div class="card" id="fixedCard">
+      <div class="section-toggle" id="fixedToggle">
+        <h2 style="margin:0;"><span class="step">3</span>固定二维码（可选）</h2>
+        <span id="fixedToggleIcon">▶</span>
+      </div>
+
+      <div id="fixedBody" style="display:none; margin-top:8px;">
+
+        <!-- 3.1 添加固定二维码 -->
+        <div class="subcard">
+          <div class="subcard-head">
+            <h3><span class="substep">3.1</span>添加固定二维码</h3>
+            <div class="actions">
+              <button class="btn ghost sm" id="clearFixedBtn">清空</button>
+            </div>
+          </div>
+          <button type="button" class="btn block" id="addFixedBtn">添加固定二维码</button>
+          <input type="file" id="fixedInput" accept="image/*" style="display:none;" />
+          <p class="hint">最多支持 2 个固定二维码，不配置不影响导出。</p>
+          <div id="fixedList" class="fixed-list"></div>
+        </div>
+
+        <!-- 3.2 位置调整 -->
+        <div class="subcard" id="fixedPropsCard" style="display:none;">
+          <div class="subcard-head">
+            <h3><span class="substep">3.2</span>位置调整</h3>
+            <div class="actions">
+              <button class="btn ghost sm" id="fixedMoveUpBtn" title="同层级上移">上移</button>
+              <button class="btn ghost sm" id="fixedMoveDownBtn" title="同层级下移">下移</button>
+              <button class="btn danger sm" id="fixedDeleteBtn" title="删除该固定二维码">删除</button>
+            </div>
+          </div>
+          <div id="fixedPropsCurrent" style="font-size:11.5px; color:var(--text-sub); margin-bottom:6px;">未选中</div>
+
+          <div class="pos-panel">
+            <div class="pos-stack">
+              <div class="pos-inputs">
+                <label><span>横向</span><input type="number" id="fixedXInput" value="0" step="1" style="width:60px;" /></label>
+                <label><span>纵向</span><input type="number" id="fixedYInput" value="0" step="1" style="width:60px;" /></label>
+              </div>
+              <div class="pos-inputs">
+                <label><span>缩放</span><input type="number" id="fixedScaleInput" value="100" step="1" min="1" style="width:60px;" /></label>
+              </div>
+            </div>
+            <div class="arrow-pad">
+              <button type="button" class="arrow up" data-fixed="y-" title="上移 1px">↑</button>
+              <button type="button" class="arrow left" data-fixed="x-" title="左移 1px">←</button>
+              <div class="arrow-center">移动</div>
+              <button type="button" class="arrow right" data-fixed="x+" title="右移 1px">→</button>
+              <button type="button" class="arrow down" data-fixed="y+" title="下移 1px">↓</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3.3 固定二维码剪裁（可选） -->
+        <div class="subcard" id="fixedCropCard" style="display:none;">
+          <div class="subcard-head">
+            <h3><span class="substep">3.3</span>二维码剪裁（可选）</h3>
+            <div class="actions">
+              <button class="btn ghost sm" id="resetFixedCropBtn">重置剪裁</button>
+            </div>
+          </div>
+          <p class="hint">从固定二维码四边向内裁剪（像素，按原始尺寸计）。</p>
+          <div class="crop-grid">
+            <div class="mini-field">
+              <span>左（裁剪）</span>
+              <div class="mini-row">
+                <input type="number" id="fixedCropL" value="0" min="0" step="1" />
+                <div class="step-btns"><button type="button" data-fixed-crop="l-">−</button><button type="button" data-fixed-crop="l+">＋</button></div>
+              </div>
+            </div>
+            <div class="mini-field">
+              <span>上（裁剪）</span>
+              <div class="mini-row">
+                <input type="number" id="fixedCropT" value="0" min="0" step="1" />
+                <div class="step-btns"><button type="button" data-fixed-crop="t-">−</button><button type="button" data-fixed-crop="t+">＋</button></div>
+              </div>
+            </div>
+            <div class="mini-field">
+              <span>右（裁剪）</span>
+              <div class="mini-row">
+                <input type="number" id="fixedCropR" value="0" min="0" step="1" />
+                <div class="step-btns"><button type="button" data-fixed-crop="r-">−</button><button type="button" data-fixed-crop="r+">＋</button></div>
+              </div>
+            </div>
+            <div class="mini-field">
+              <span>下（裁剪）</span>
+              <div class="mini-row">
+                <input type="number" id="fixedCropB" value="0" min="0" step="1" />
+                <div class="step-btns"><button type="button" data-fixed-crop="b-">−</button><button type="button" data-fixed-crop="b+">＋</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 步骤④ 预览 + 导出 -->
+    <div class="card">
+      <h2><span class="step">4</span>预览 / 导出</h2>
+      <div class="btn-row" style="margin-bottom:8px; flex-direction:column;">
+        <button class="btn block" id="exportBtn">④ 一键批量导出（ZIP）</button>
+        <button class="btn ghost block" id="overviewBtn" style="margin-top:6px;">缩略图总览（导出前预览全部合成效果）</button>
+      </div>
+      <div id="exportProgress" style="display:none;">
+        <div class="progress"><i id="exportBar"></i></div>
+        <div class="progress-text" id="exportText">导出中…</div>
+      </div>
+      <p class="hint">导出图片的分辨率、格式、编码与原始底图保持一致；文件名取对应二维码原始文件名（保留后缀）。<br>画质策略：PNG 为无损导出；若底图为 JPEG / WebP 等本身有损格式，已用最高质量（0.99，近乎无损）导出。如需完全无损，请使用 PNG 格式底图。</p>
+    </div>
+
+  </aside>
+
+  <main class="stage">
+    <div class="zoom-bar">
+      <button class="btn ghost sm" id="zoomOut" title="缩小预览">−</button>
+      <input type="range" id="zoomRange" min="5" max="300" value="100" />
+      <span class="zoom-label" id="zoomLabel">100%</span>
+      <button class="btn ghost sm" id="zoomIn" title="放大预览">＋</button>
+      <button class="btn ghost sm" id="zoomFit" title="适应屏幕">适应屏幕</button>
+    </div>
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="previewCanvas" width="800" height="600"></canvas>
+      <div class="drop-tip">松开以设为底图</div>
+    </div>
+    <div class="stage-info" id="stageInfo">请先上传底图与二维码，然后在画布上拖动二维码进行摆放。</div>
+  </main>
+</div>
+
+<div class="site-footer">本工具为纯前端本地应用，所有图片均在浏览器内处理，不会上传服务器 | Powered by Yulai © 2026. Version 2.0</div>
+
+<div id="loadingMask">
+  <div class="spinner"></div>
+  <div class="msg" id="loadingMsg">处理中…</div>
+</div>
+
+<div id="toastBox"></div>
+
+<div id="overviewModal" class="overview-mask">
+  <div class="overview-panel">
+    <div class="overview-head">
+      <span id="overviewTitle">导出前缩略图总览</span>
+      <button class="btn ghost sm" id="overviewClose">关闭 ✕</button>
+    </div>
+    <div class="overview-grid" id="overviewGrid"></div>
+  </div>
+</div>
+
+<script>
+/* ===================== 常量与状态 ===================== */
+const MAX_BASE_SIZE = 50 * 1024 * 1024;
+const MAX_QR_SIZE   = 30 * 1024 * 1024;
+const MAX_PIXELS    = 30000000; // 3000 万像素上限
+const MAX_QR_COUNT  = 200;      // 动态二维码数量上限，防止列表/下拉/导出性能失控
+
+const state = {
+  baseImg: null,
+  baseFile: null,
+  baseMime: 'image/png',
+  baseObjectURL: null,
+  qrFiles: [],
+  currentIdx: 0,
+  settings: { x:0, y:0, scale:1, rot:0, crop:{l:0,t:0,r:0,b:0} },
+  defaultScale: 1,
+  // 固定二维码
+  fixedQRs: [],
+  selectedFixedId: null,
+  // 拖拽状态
+  dragging: false,
+  dragMode: null,
+  dragFixedId: null,
+  dragOffX: 0,
+  dragOffY: 0,
+  cropEdge: null,
+  cropRef: null,
+  // 渲染调度
+  renderPending: false
+};
+
+/* ===================== DOM 引用 ===================== */
+const $ = id => document.getElementById(id);
+const baseInput   = $('baseInput');
+const baseInfo    = $('baseInfo');
+const qrInput     = $('qrInput');
+const qrSelect    = $('qrSelect');
+const qrList      = $('qrList');
+const qrCountHint = $('qrCountHint');
+const qrLoadProgress = $('qrLoadProgress');
+const qrLoadBar   = $('qrLoadBar');
+const qrLoadText  = $('qrLoadText');
+const qrEditSubcard = $('qrEditSubcard');
+const qrCropSubcard = $('qrCropSubcard');
+const xInput      = $('xInput');
+const yInput      = $('yInput');
+const scaleInput  = $('scaleInput');
+const rotInput    = $('rotInput');
+const cropLInput  = $('cropL');
+const cropTInput  = $('cropT');
+const cropRInput  = $('cropR');
+const cropBInput  = $('cropB');
+const canvas      = $('previewCanvas');
+const ctx         = canvas.getContext('2d');
+const stageInfo   = $('stageInfo');
+const exportBtn   = $('exportBtn');
+const exportProg  = $('exportProgress');
+const exportBar   = $('exportBar');
+const exportText  = $('exportText');
+const loadingMask = $('loadingMask');
+const loadingMsg  = $('loadingMsg');
+const canvasWrap  = $('canvasWrap');
+const zoomRange   = $('zoomRange');
+const zoomLabel   = $('zoomLabel');
+const overviewModal = $('overviewModal');
+const overviewGrid  = $('overviewGrid');
+const overviewClose = $('overviewClose');
+// 固定二维码 DOM
+const addDynamicBtn   = $('addDynamicBtn');
+const fixedToggle     = $('fixedToggle');
+const fixedToggleIcon = $('fixedToggleIcon');
+const fixedBody       = $('fixedBody');
+const addFixedBtn     = $('addFixedBtn');
+const fixedInput      = $('fixedInput');
+const fixedList       = $('fixedList');
+const clearFixedBtn   = $('clearFixedBtn');
+const fixedPropsCard  = $('fixedPropsCard');
+const fixedPropsCurrent = $('fixedPropsCurrent');
+const fixedXInput     = $('fixedXInput');
+const fixedYInput     = $('fixedYInput');
+const fixedScaleInput = $('fixedScaleInput');
+const fixedCropLInput = $('fixedCropL');
+const fixedCropTInput = $('fixedCropT');
+const fixedCropRInput = $('fixedCropR');
+const fixedCropBInput = $('fixedCropB');
+const fixedCropCard   = $('fixedCropCard');
+
+/* ===================== 工具函数 ===================== */
+function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+function showLoading(msg){ loadingMsg.textContent = msg; loadingMask.classList.add('show'); }
+function hideLoading(){ loadingMask.classList.remove('show'); }
+function toast(msg, type='info'){
+  const box = $('toastBox');
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  box.appendChild(el);
+  setTimeout(()=> el.remove(), 3500);
+}
+
+function validateImageFile(file, maxBytes){
+  if(!file.type.startsWith('image/')) return { ok:false, msg:'格式不支持：' + file.name };
+  if(file.size > maxBytes) return { ok:false, msg:`文件过大（>${maxBytes/1024/1024}MB）：` + file.name };
+  return { ok:true };
+}
+
+function loadImage(file){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = ()=> resolve({ img, url });
+    img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('decode fail')); };
+    img.src = url;
+  });
+}
+
+function makeId(prefix='id'){ return prefix + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
+function currentQR(){ return state.qrFiles[state.currentIdx] || null; }
+function selectedFixedQR(){ return state.fixedQRs.find(fq => fq.id === state.selectedFixedId) || null; }
+
+/* ===================== 底图加载 ===================== */
+let baseLoadToken = 0; // 底图加载竞态令牌
+
+function setBaseFile(file){
+  if(!file) return;
+  if(!file.type.startsWith('image/')){ toast('底图格式不支持：' + file.name, 'error'); return; }
+  if(file.size > MAX_BASE_SIZE){ toast('底图文件过大（>50MB）：' + file.name, 'error'); return; }
+
+  const t = file.type;
+  state.baseMime = (t==='image/png'||t==='image/jpeg'||t==='image/webp') ? t : 'image/png';
+
+  const token = ++baseLoadToken;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = ()=>{
+    if(token !== baseLoadToken){ URL.revokeObjectURL(url); return; } // 已被更新的底图请求取代
+    if(img.naturalWidth * img.naturalHeight > MAX_PIXELS){
+      URL.revokeObjectURL(url);
+      toast('底图像素过大（超过 3000 万像素），已拒绝：' + file.name, 'error');
+      return;
+    }
+    if(state.baseObjectURL) URL.revokeObjectURL(state.baseObjectURL);
+    state.baseObjectURL = url;
+    state.baseImg  = img;
+    state.baseFile = file;
+    canvas.width  = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    baseInfo.textContent = `已加载：${file.name} ｜ ${img.naturalWidth}×${img.naturalHeight} ｜ ${t}`;
+    centerQR();
+    fitToScreen();
+    renderPreview();
+    updateStageInfo();
+  };
+  img.onerror = ()=>{ URL.revokeObjectURL(url); if(token === baseLoadToken) toast('底图解码失败：' + file.name, 'error'); };
+  img.src = url;
+}
+
+baseInput.addEventListener('change', (e)=>{
+  const files = e.target.files;
+  if(!files || files.length===0) return;
+  if(files.length > 1) toast('底图仅支持单张，已自动使用第一张。', 'warn');
+  setBaseFile(files[0]);
+});
+
+/* ===================== 动态二维码 ===================== */
+function centerQR(){
+  if(!state.baseImg || !currentQR()) return;
+  const img = currentQR().img;
+  const baseW = state.baseImg.naturalWidth, baseH = state.baseImg.naturalHeight;
+  let scale = (baseW * 0.25) / Math.max(1, img.naturalWidth);
+  scale = Math.min(scale, 1);
+  const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
+  state.settings.x = Math.round((baseW - w)/2);
+  state.settings.y = Math.round((baseH - h)/2);
+  state.settings.scale = scale;
+  state.settings.rot = 0;
+  state.settings.crop = { l:0, t:0, r:0, b:0 };
+}
+
+async function addQrFiles(files){
+  const valid = [];
+  for(const f of files){
+    const v = validateImageFile(f, MAX_QR_SIZE);
+    if(!v.ok){ toast(v.msg, 'warn'); continue; }
+    valid.push(f);
+  }
+  if(valid.length===0) return;
+
+  // 数量上限：截断超出部分，防止列表/下拉/导出性能失控
+  const room = MAX_QR_COUNT - state.qrFiles.length;
+  if(room <= 0){ toast(`动态二维码最多 ${MAX_QR_COUNT} 张，请先清空后再导入。`, 'warn'); return; }
+  if(valid.length > room){
+    toast(`动态二维码最多 ${MAX_QR_COUNT} 张，本次仅导入前 ${room} 张。`, 'warn');
+    valid.length = room;
+  }
+
+  setEditLocked(true);
+  try{
+    qrLoadProgress.style.display = 'block';
+    qrList.style.display = 'block';
+    let done = 0;
+    const total = valid.length;
+
+    for(const f of valid){
+      qrLoadText.textContent = `正在加载二维码 ${done+1} / ${total}`;
+      qrLoadBar.style.width = Math.round((done/total)*100) + '%';
+      try{
+        const { img, url } = await loadImage(f);
+        if(img.naturalWidth * img.naturalHeight > MAX_PIXELS){ URL.revokeObjectURL(url); toast('图片像素过大，已跳过：' + f.name, 'warn'); continue; }
+        state.qrFiles.push({ name:f.name, file:f, img, objectURL:url });
+        appendQrRow(f.name, img);
+        done++;
+      }catch(err){ toast('解码失败，已跳过：' + f.name, 'warn'); }
+      await sleep(0);
+    }
+    qrLoadBar.style.width = '100%';
+    qrLoadText.textContent = `加载完成，共 ${done} 张`;
+    setTimeout(()=> qrLoadProgress.style.display='none', 800);
+    rebuildQrSelect();
+    updateQrSubcardsVisibility();
+    if(state.baseImg){ centerQR(); syncInputsFromSettings(); }
+    renderPreview();
+    updateStageInfo();
+  }finally{
+    setEditLocked(false);
+  }
+}
+
+function appendQrRow(name, img){
+  const row = document.createElement('div');
+  row.className = 'row';
+  const nm = document.createElement('span'); nm.className='nm'; nm.title=name; nm.textContent=name;
+  const meta = document.createElement('span'); meta.className='meta'; meta.textContent = `${img.naturalWidth}×${img.naturalHeight}`;
+  row.appendChild(nm); row.appendChild(meta);
+  qrList.appendChild(row);
+  if(qrList.children.length > 500) qrList.querySelector('.row:first-child').remove();
+}
+
+function rebuildQrSelect(){
+  qrSelect.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  state.qrFiles.forEach((q,i)=>{
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = `第 ${i+1} 张：${q.name}`; // textContent 自动转义，防注入
+    frag.appendChild(opt);
+  });
+  qrSelect.appendChild(frag);
+  qrSelect.value = String(state.currentIdx);
+  qrCountHint.textContent = state.qrFiles.length ? `已导入 ${state.qrFiles.length} 张动态二维码。` : '尚未导入动态二维码。';
+}
+
+/* 根据是否已导入动态二维码，显示/隐藏 2.2 / 2.3 */
+function updateQrSubcardsVisibility(){
+  const has = state.qrFiles.length > 0;
+  qrEditSubcard.style.display = has ? 'block' : 'none';
+  qrCropSubcard.style.display = has ? 'block' : 'none';
+}
+
+addDynamicBtn.addEventListener('click', ()=> qrInput.click());
+qrInput.addEventListener('change', (e)=>{ addQrFiles(Array.from(e.target.files||[])); e.target.value=''; });
+
+qrSelect.addEventListener('change', (e)=>{
+  state.currentIdx = parseInt(e.target.value, 10) || 0;
+  syncInputsFromSettings();
+  renderPreview();
+  updateStageInfo();
+});
+
+$('clearQrBtn').addEventListener('click', ()=>{
+  if(state.qrFiles.length===0) return;
+  state.qrFiles.forEach(q=>{ if(q.objectURL) URL.revokeObjectURL(q.objectURL); });
+  state.qrFiles = [];
+  state.currentIdx = 0;
+  qrList.innerHTML = '';
+  qrList.style.display='none';
+  rebuildQrSelect();
+  updateQrSubcardsVisibility();
+  renderPreview();
+  updateStageInfo();
+  toast('已清空动态二维码。', 'info');
+});
+
+/* ===================== 固定二维码 ===================== */
+function defaultFixedGeometry(img){
+  if(!state.baseImg) return { x:30, y:30, scale:1 };
+  const baseW = state.baseImg.naturalWidth, baseH = state.baseImg.naturalHeight;
+  let scale = (baseW * 0.15) / Math.max(1, img.naturalWidth);
+  scale = Math.min(scale, 1);
+  const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
+  return { x:30, y: Math.max(30, baseH - h - 30), scale };
+}
+
+async function addFixedQR(file){
+  if(!file) return;
+  if(state.fixedQRs.length >= 2){ toast('最多支持 2 个固定二维码。', 'warn'); return; }
+  const v = validateImageFile(file, MAX_QR_SIZE);
+  if(!v.ok){ toast(v.msg, 'error'); return; }
+  setEditLocked(true);
+  try{
+    const { img, url } = await loadImage(file);
+    if(img.naturalWidth * img.naturalHeight > MAX_PIXELS){ URL.revokeObjectURL(url); toast('图片像素过大，已跳过：' + file.name, 'warn'); return; }
+    const geo = defaultFixedGeometry(img);
+    const fq = { id: makeId('fixed'), name: file.name, file, img, x: geo.x, y: geo.y, scale: geo.scale,
+      crop: { l:0, t:0, r:0, b:0 }, objectURL: url };
+    state.fixedQRs.push(fq);
+    state.selectedFixedId = fq.id;
+    // 取消动态二维码选中
+    rebuildFixedList();
+    renderFixedProps();
+    renderPreview();
+    updateStageInfo();
+    toast(`已添加固定二维码：${file.name}`, 'ok');
+  }catch(err){ toast('固定二维码解码失败：' + file.name, 'warn'); }
+  finally{ setEditLocked(false); }
+}
+
+function deleteFixedQR(id){
+  const idx = state.fixedQRs.findIndex(fq => fq.id === id);
+  if(idx === -1) return;
+  const fq = state.fixedQRs[idx];
+  if(fq.objectURL) URL.revokeObjectURL(fq.objectURL);
+  state.fixedQRs.splice(idx, 1);
+  if(state.selectedFixedId === id){
+    state.selectedFixedId = state.fixedQRs.length ? state.fixedQRs[Math.min(idx, state.fixedQRs.length-1)].id : null;
+  }
+  rebuildFixedList();
+  renderFixedProps();
+  renderPreview();
+  updateStageInfo();
+}
+
+function moveFixedQR(id, direction){
+  const idx = state.fixedQRs.findIndex(fq => fq.id === id);
+  if(idx === -1) return;
+  const newIdx = direction === 'up' ? idx + 1 : idx - 1;
+  if(newIdx < 0 || newIdx >= state.fixedQRs.length) return;
+  [state.fixedQRs[idx], state.fixedQRs[newIdx]] = [state.fixedQRs[newIdx], state.fixedQRs[idx]];
+  rebuildFixedList();
+  renderPreview();
+}
+
+function rebuildFixedList(){
+  fixedList.innerHTML = '';
+  if(state.fixedQRs.length === 0){ fixedList.innerHTML = '<p class="hint">暂无固定二维码</p>'; return; }
+  const frag = document.createDocumentFragment();
+  state.fixedQRs.forEach((fq, i)=>{
+    const item = document.createElement('div');
+    item.className = 'fixed-item' + (fq.id === state.selectedFixedId ? ' active' : '');
+    item.title = fq.name;
+    const name = document.createElement('span'); name.className='name'; name.textContent = `${i+1}. ${fq.name}`;
+    const badge = document.createElement('span'); badge.className='badge'; badge.textContent='固定';
+    item.appendChild(name); item.appendChild(badge);
+    item.addEventListener('click', ()=>{
+      state.selectedFixedId = fq.id;
+      rebuildFixedList();
+      renderFixedProps();
+      renderPreview();
+      updateStageInfo();
+    });
+    frag.appendChild(item);
+  });
+  fixedList.appendChild(frag);
+}
+
+function renderFixedProps(){
+  const fq = selectedFixedQR();
+  if(!fq){ fixedPropsCard.style.display='none'; fixedCropCard.style.display='none'; return; }
+  fixedPropsCard.style.display='block';
+  fixedCropCard.style.display='block';
+  fixedPropsCurrent.textContent = `已选中：${fq.name}`;
+  fixedXInput.value = fq.x;
+  fixedYInput.value = fq.y;
+  fixedScaleInput.value = Math.round(fq.scale * 100);
+  fixedCropLInput.value = fq.crop.l;
+  fixedCropTInput.value = fq.crop.t;
+  fixedCropRInput.value = fq.crop.r;
+  fixedCropBInput.value = fq.crop.b;
+  const idx = state.fixedQRs.findIndex(f => f.id === fq.id);
+  $('fixedMoveUpBtn').disabled = (idx >= state.fixedQRs.length - 1);
+  $('fixedMoveDownBtn').disabled = (idx <= 0);
+}
+
+function applyFixedInputs(){
+  const fq = selectedFixedQR();
+  if(!fq) return;
+  fq.x = parseInt(fixedXInput.value, 10) || 0;
+  fq.y = parseInt(fixedYInput.value, 10) || 0;
+  fq.scale = Math.max(0.01, (parseInt(fixedScaleInput.value,10)||100)/100);
+  fq.crop.l = Math.max(0, parseInt(fixedCropLInput.value,10)||0);
+  fq.crop.t = Math.max(0, parseInt(fixedCropTInput.value,10)||0);
+  fq.crop.r = Math.max(0, parseInt(fixedCropRInput.value,10)||0);
+  fq.crop.b = Math.max(0, parseInt(fixedCropBInput.value,10)||0);
+  if(clampFixedPos(fq)) syncFixedInputs(); // 越界时回写输入框
+  renderPreview();
+  updateStageInfo();
+}
+
+function syncFixedInputs(){
+  const fq = selectedFixedQR();
+  if(!fq) return;
+  fixedXInput.value = fq.x;
+  fixedYInput.value = fq.y;
+  fixedScaleInput.value = Math.round(fq.scale * 100);
+}
+
+addFixedBtn.addEventListener('click', ()=> fixedInput.click());
+fixedInput.addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  e.target.value='';
+  if(file) addFixedQR(file);
+});
+
+clearFixedBtn.addEventListener('click', ()=>{
+  if(state.fixedQRs.length===0) return;
+  state.fixedQRs.forEach(fq=>{ if(fq.objectURL) URL.revokeObjectURL(fq.objectURL); });
+  state.fixedQRs = [];
+  state.selectedFixedId = null;
+  rebuildFixedList();
+  renderFixedProps();
+  renderPreview();
+  updateStageInfo();
+  toast('已清空固定二维码。', 'info');
+});
+
+$('fixedMoveUpBtn').addEventListener('click', ()=>{ if(state.selectedFixedId) moveFixedQR(state.selectedFixedId, 'up'); });
+$('fixedMoveDownBtn').addEventListener('click', ()=>{ if(state.selectedFixedId) moveFixedQR(state.selectedFixedId, 'down'); });
+$('fixedDeleteBtn').addEventListener('click', ()=>{ if(state.selectedFixedId) deleteFixedQR(state.selectedFixedId); });
+
+[fixedXInput, fixedYInput, fixedScaleInput, fixedCropLInput, fixedCropTInput, fixedCropRInput, fixedCropBInput].forEach(inp=>{
+  inp.addEventListener('input', applyFixedInputs);
+  inp.addEventListener('change', applyFixedInputs);
+});
+
+document.querySelectorAll('button[data-fixed]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const fq = selectedFixedQR();
+    if(!fq) return;
+    const act = btn.dataset.fixed;
+    if(act==='x-') fq.x -= 1;
+    if(act==='x+') fq.x += 1;
+    if(act==='y-') fq.y -= 1;
+    if(act==='y+') fq.y += 1;
+    clampFixedPos(fq);
+    syncFixedInputs();
+    renderPreview();
+    updateStageInfo();
+  });
+});
+
+document.querySelectorAll('button[data-fixed-crop]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const fq = selectedFixedQR();
+    if(!fq) return;
+    const act = btn.dataset.fixedCrop;
+    const c = fq.crop;
+    const qw = fq.img.naturalWidth, qh = fq.img.naturalHeight;
+    if(act==='l-') c.l = Math.max(0, c.l-1);
+    if(act==='l+') c.l = Math.min(qw - c.r - 2, c.l+1);
+    if(act==='r-') c.r = Math.max(0, c.r-1);
+    if(act==='r+') c.r = Math.min(qw - c.l - 2, c.r+1);
+    if(act==='t-') c.t = Math.max(0, c.t-1);
+    if(act==='t+') c.t = Math.min(qh - c.b - 2, c.t+1);
+    if(act==='b-') c.b = Math.max(0, c.b-1);
+    if(act==='b+') c.b = Math.min(qh - c.t - 2, c.b+1);
+    fixedCropLInput.value=c.l; fixedCropTInput.value=c.t; fixedCropRInput.value=c.r; fixedCropBInput.value=c.b;
+    renderPreview();
+    updateStageInfo();
+  });
+});
+
+$('resetFixedCropBtn').addEventListener('click', ()=>{
+  const fq = selectedFixedQR();
+  if(!fq) return;
+  fq.crop = { l:0, t:0, r:0, b:0 };
+  renderFixedProps();
+  renderPreview();
+  updateStageInfo();
+  toast('已重置固定二维码剪裁。', 'ok');
+});
+
+fixedToggle.addEventListener('click', ()=>{
+  const isHidden = fixedBody.style.display === 'none';
+  fixedBody.style.display = isHidden ? 'block' : 'none';
+  fixedToggleIcon.textContent = isHidden ? '▼' : '▶';
+});
+
+/* ===================== 渲染与几何 ===================== */
+function getDispScale(){ return parseInt(zoomRange.value,10)/100 || 1; }
+
+function toImageCoords(e){
+  const rect = canvas.getBoundingClientRect();
+  const dispScale = getDispScale();
+  return {
+    x: Math.round((e.clientX - rect.left) / dispScale),
+    y: Math.round((e.clientY - rect.top) / dispScale)
+  };
+}
+
+function getDynamicBox(){
+  const qr = currentQR();
+  if(!qr) return null;
+  const c = state.settings.crop;
+  const qw = qr.img.naturalWidth - c.l - c.r;
+  const qh = qr.img.naturalHeight - c.t - c.b;
+  const w = qw * state.settings.scale, h = qh * state.settings.scale;
+  const cx = state.settings.x + w/2, cy = state.settings.y + h/2;
+  const rot = state.settings.rot * Math.PI / 180;
+  return { qw, qh, w, h, cx, cy, cos:Math.cos(rot), sin:Math.sin(rot), c };
+}
+
+function localToImg(b, lx, ly){
+  return { x: b.cx + lx*b.cos - ly*b.sin, y: b.cy + lx*b.sin + ly*b.cos };
+}
+
+function pointInDynamicQR(p){
+  const b = getDynamicBox();
+  if(!b) return false;
+  const dx = p.x - b.cx, dy = p.y - b.cy;
+  const lx = dx*b.cos + dy*b.sin;
+  const ly = -dx*b.sin + dy*b.cos;
+  return lx >= -b.w/2 && lx <= b.w/2 && ly >= -b.h/2 && ly <= b.h/2;
+}
+
+function pointInFixedQR(p, fq){
+  const c = fq.crop || {l:0,t:0,r:0,b:0};
+  const qw = fq.img.naturalWidth - c.l - c.r;
+  const qh = fq.img.naturalHeight - c.t - c.b;
+  const w = qw * fq.scale, h = qh * fq.scale;
+  return p.x >= fq.x && p.x <= fq.x + w && p.y >= fq.y && p.y <= fq.y + h;
+}
+
+// 位置边界收敛：保证二维码至少有 2px 露出，既不产生完全越界的负坐标，也允许贴边摆放
+function clampDynamicPos(){
+  if(!state.baseImg || !currentQR()) return false;
+  const qr = currentQR();
+  const c = state.settings.crop;
+  const w = Math.max(1, (qr.img.naturalWidth - c.l - c.r) * state.settings.scale);
+  const h = Math.max(1, (qr.img.naturalHeight - c.t - c.b) * state.settings.scale);
+  const W = state.baseImg.naturalWidth, H = state.baseImg.naturalHeight;
+  const nx = clamp(state.settings.x, -(w - 2), W - 2);
+  const ny = clamp(state.settings.y, -(h - 2), H - 2);
+  const changed = nx !== state.settings.x || ny !== state.settings.y;
+  state.settings.x = nx; state.settings.y = ny;
+  return changed;
+}
+
+function clampFixedPos(fq){
+  if(!state.baseImg || !fq) return false;
+  const c = fq.crop || {l:0,t:0,r:0,b:0};
+  const w = Math.max(1, (fq.img.naturalWidth - c.l - c.r) * fq.scale);
+  const h = Math.max(1, (fq.img.naturalHeight - c.t - c.b) * fq.scale);
+  const W = state.baseImg.naturalWidth, H = state.baseImg.naturalHeight;
+  const nx = clamp(fq.x, -(w - 2), W - 2);
+  const ny = clamp(fq.y, -(h - 2), H - 2);
+  const changed = nx !== fq.x || ny !== fq.y;
+  fq.x = nx; fq.y = ny;
+  return changed;
+}
+
+function drawQR(targetCtx, qrImg, s){
+  const c = s.crop || {l:0,t:0,r:0,b:0};
+  const cw0 = Math.max(1, qrImg.naturalWidth  - c.l - c.r);
+  const ch0 = Math.max(1, qrImg.naturalHeight - c.t - c.b);
+  const w = cw0 * s.scale, h = ch0 * s.scale;
+  targetCtx.save();
+  targetCtx.translate(s.x + w/2, s.y + h/2);
+  targetCtx.rotate((s.rot || 0) * Math.PI / 180);
+  targetCtx.drawImage(qrImg, c.l, c.t, cw0, ch0, -w/2, -h/2, w, h);
+  targetCtx.restore();
+}
+
+function drawFixedQR(targetCtx, fq){
+  const c = fq.crop || {l:0,t:0,r:0,b:0};
+  const cw0 = Math.max(1, fq.img.naturalWidth - c.l - c.r);
+  const ch0 = Math.max(1, fq.img.naturalHeight - c.t - c.b);
+  const w = cw0 * fq.scale, h = ch0 * fq.scale;
+  targetCtx.drawImage(fq.img, c.l, c.t, cw0, ch0, fq.x, fq.y, w, h);
+}
+
+function renderPreview(){
+  if(state.renderPending) return;
+  state.renderPending = true;
+  requestAnimationFrame(()=>{
+    state.renderPending = false;
+    _doRenderPreview();
+  });
+}
+
+function _doRenderPreview(){
+  try{
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(!state.baseImg){
+      ctx.fillStyle='#f0f3f7'; ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle='#9aa5b1'; ctx.font='20px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('未加载底图', canvas.width/2, canvas.height/2);
+      return;
+    }
+    ctx.drawImage(state.baseImg, 0, 0);
+
+    // 固定二维码（下层）
+    state.fixedQRs.forEach(fq => drawFixedQR(ctx, fq));
+
+    // 动态二维码（上层）
+    const qr = currentQR();
+    if(qr) drawQR(ctx, qr.img, state.settings);
+
+    // 绘制选中框/手柄
+    if(state.selectedFixedId){
+      drawFixedQRHandles(selectedFixedQR());
+    }else if(qr){
+      drawDynamicQRHandles();
+    }
+  }catch(err){
+    console.error(err);
+    toast('渲染失败：' + (err.message || err), 'error');
+  }
+}
+
+function drawDynamicQRHandles(){
+  const b = getDynamicBox();
+  if(!b) return;
+  const w = b.w, h = b.h;
+  ctx.save();
+  ctx.translate(b.cx, b.cy);
+  ctx.rotate(state.settings.rot * Math.PI/180);
+  ctx.strokeStyle = 'rgba(47,111,237,.9)';
+  ctx.lineWidth = Math.max(2, canvas.width/600);
+  ctx.setLineDash([8,6]);
+  ctx.strokeRect(-w/2, -h/2, w, h);
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(47,111,237,.9)';
+  ctx.font = `${Math.max(12, canvas.width/60)}px sans-serif`;
+  ctx.textAlign='left';
+  ctx.fillText('二维码', -w/2, -h/2 - 6);
+  ctx.restore();
+
+  // 右下角缩放手柄
+  const H = localToImg(b, w/2, h/2);
+  const hs = 14 / getDispScale();
+  ctx.save(); ctx.translate(H.x, H.y); ctx.fillStyle='#ff7a18'; ctx.strokeStyle='#fff'; ctx.lineWidth=Math.max(1.5, canvas.width/900);
+  ctx.beginPath(); ctx.rect(-hs/2, -hs/2, hs, hs); ctx.fill(); ctx.stroke(); ctx.restore();
+
+  // 四边裁剪手柄
+  const edges = [
+    {key:'cl', pt:localToImg(b, -w/2, 0)},
+    {key:'cr', pt:localToImg(b, w/2, 0)},
+    {key:'ct', pt:localToImg(b, 0, -h/2)},
+    {key:'cb', pt:localToImg(b, 0, h/2)}
+  ];
+  ctx.fillStyle='#52c41a';
+  edges.forEach(e=>{
+    ctx.beginPath();
+    ctx.arc(e.pt.x, e.pt.y, Math.max(4, 6/getDispScale()), 0, Math.PI*2);
+    ctx.fill();
+  });
+}
+
+function drawFixedQRHandles(fq){
+  if(!fq) return;
+  const c = fq.crop || {l:0,t:0,r:0,b:0};
+  const w = (fq.img.naturalWidth - c.l - c.r) * fq.scale;
+  const h = (fq.img.naturalHeight - c.t - c.b) * fq.scale;
+  ctx.save();
+  ctx.strokeStyle='rgba(47,111,237,.9)';
+  ctx.lineWidth=Math.max(2, canvas.width/600);
+  ctx.setLineDash([8,6]);
+  ctx.strokeRect(fq.x, fq.y, w, h);
+  ctx.setLineDash([]);
+  ctx.fillStyle='rgba(47,111,237,.9)';
+  ctx.font=`${Math.max(12, canvas.width/60)}px sans-serif`;
+  ctx.textAlign='left';
+  ctx.fillText('固定二维码', fq.x, fq.y - 6);
+  ctx.restore();
+
+  // 右下角缩放手柄
+  const hs = 14 / getDispScale();
+  ctx.save(); ctx.translate(fq.x + w, fq.y + h); ctx.fillStyle='#ff7a18'; ctx.strokeStyle='#fff'; ctx.lineWidth=Math.max(1.5, canvas.width/900);
+  ctx.beginPath(); ctx.rect(-hs/2, -hs/2, hs, hs); ctx.fill(); ctx.stroke(); ctx.restore();
+}
+
+/* ===================== 拖拽 / 命中测试 ===================== */
+function hitTestFixedHandle(p, fq){
+  const c = fq.crop || {l:0,t:0,r:0,b:0};
+  const w = (fq.img.naturalWidth - c.l - c.r) * fq.scale;
+  const h = (fq.img.naturalHeight - c.t - c.b) * fq.scale;
+  const hs = 14 / getDispScale();
+  const hx = fq.x + w, hy = fq.y + h;
+  return Math.hypot(p.x - hx, p.y - hy) <= hs * 1.5 ? 'resize' : null;
+}
+
+canvas.addEventListener('mousedown', (e)=>{
+  if(!state.baseImg) return;
+  const p = toImageCoords(e);
+
+  // 优先：如果当前选中固定二维码，先判断其手柄
+  const selFixed = selectedFixedQR();
+  if(selFixed && hitTestFixedHandle(p, selFixed) === 'resize'){
+    state.dragging = true;
+    state.dragMode = 'fixedResize';
+    state.dragFixedId = selFixed.id;
+    state.fixedAnchor = { x: selFixed.x, y: selFixed.y };
+    state.fixedOrigW = selFixed.img.naturalWidth;
+    state.fixedOrigH = selFixed.img.naturalHeight;
+    canvas.style.cursor = 'nwse-resize';
+    return;
+  }
+
+  // 动态二维码命中测试（最上层）
+  const qr = currentQR();
+  if(qr){
+    const b = getDynamicBox();
+    const w = b.w, h = b.h;
+    const th = 16 / getDispScale();
+
+    // 右下角缩放手柄
+    const H = localToImg(b, w/2, h/2);
+    if(Math.hypot(p.x - H.x, p.y - H.y) <= th){
+      state.selectedFixedId = null; rebuildFixedList(); renderFixedProps();
+      state.dragging = true; state.dragMode = 'resize';
+      state.anchor = localToImg(b, -w/2, -h/2);
+      state.u = { x: b.cos, y: b.sin };
+      state.v = { x: -b.sin, y: b.cos };
+      state.diag = Math.hypot(b.qw, b.qh);
+      state.rqw = b.qw; state.rqh = b.qh;
+      canvas.style.cursor = 'nwse-resize';
+      return;
+    }
+
+    // 四边裁剪手柄
+    const edgePts = [
+      { key:'cl', pt: localToImg(b, -w/2, 0) },
+      { key:'cr', pt: localToImg(b,  w/2, 0) },
+      { key:'ct', pt: localToImg(b, 0, -h/2) },
+      { key:'cb', pt: localToImg(b, 0,  h/2) }
+    ];
+    for(const ept of edgePts){
+      if(Math.hypot(p.x - ept.pt.x, p.y - ept.pt.y) <= th){
+        state.selectedFixedId = null; rebuildFixedList(); renderFixedProps();
+        state.dragging = true; state.dragMode = 'crop'; state.cropEdge = ept.key;
+        state.cropRef = {
+          cx: b.cx, cy: b.cy, cos: b.cos, sin: b.sin,
+          naturalWidth: qr.img.naturalWidth, naturalHeight: qr.img.naturalHeight,
+          cropL: state.settings.crop.l, cropT: state.settings.crop.t,
+          cropR: state.settings.crop.r, cropB: state.settings.crop.b,
+          w0: b.w, h0: b.h, scale: state.settings.scale
+        };
+        canvas.style.cursor = (ept.key==='cl'||ept.key==='cr') ? 'ew-resize' : 'ns-resize';
+        return;
+      }
+    }
+
+    // 框内移动（旋转感知命中，与 hover 光标一致）
+    if(pointInDynamicQR(p)){
+      state.selectedFixedId = null; rebuildFixedList(); renderFixedProps();
+      state.dragging = true; state.dragMode = 'move';
+      state.dragOffX = p.x - state.settings.x;
+      state.dragOffY = p.y - state.settings.y;
+      canvas.style.cursor = 'grabbing';
+      syncInputsFromSettings();
+      renderPreview();
+      return;
+    }
+  }
+
+  // 固定二维码命中测试（后添加的在上层）
+  for(let i = state.fixedQRs.length - 1; i >= 0; i--){
+    const fq = state.fixedQRs[i];
+    if(pointInFixedQR(p, fq)){
+      state.selectedFixedId = fq.id;
+      rebuildFixedList();
+      renderFixedProps();
+      state.dragging = true;
+      state.dragMode = 'fixedMove';
+      state.dragFixedId = fq.id;
+      state.dragOffX = p.x - fq.x;
+      state.dragOffY = p.y - fq.y;
+      canvas.style.cursor = 'grabbing';
+      renderPreview();
+      return;
+    }
+  }
+
+  // 空白处：取消固定二维码选中
+  state.selectedFixedId = null;
+  rebuildFixedList();
+  renderFixedProps();
+  renderPreview();
+});
+
+window.addEventListener('mousemove', (e)=>{
+  if(!state.dragging) return;
+  const p = toImageCoords(e);
+
+  if(state.dragMode === 'fixedMove'){
+    const fq = state.fixedQRs.find(f => f.id === state.dragFixedId);
+    if(fq){ fq.x = Math.round(p.x - state.dragOffX); fq.y = Math.round(p.y - state.dragOffY); clampFixedPos(fq); syncFixedInputs(); renderPreview(); }
+    return;
+  }
+  if(state.dragMode === 'fixedResize'){
+    const fq = state.fixedQRs.find(f => f.id === state.dragFixedId);
+    if(fq){
+      const dx = p.x - state.fixedAnchor.x, dy = p.y - state.fixedAnchor.y;
+      const c = fq.crop || {l:0,t:0,r:0,b:0};
+      const s = Math.max(dx / Math.max(1, fq.img.naturalWidth - c.l - c.r), dy / Math.max(1, fq.img.naturalHeight - c.t - c.b));
+      fq.scale = Math.max(0.01, s);
+      syncFixedInputs();
+      renderPreview();
+    }
+    return;
+  }
+
+  if(state.dragMode === 'move'){
+    state.settings.x = Math.round(p.x - state.dragOffX);
+    state.settings.y = Math.round(p.y - state.dragOffY);
+    clampDynamicPos();
+    syncInputsFromSettings();
+  }else if(state.dragMode === 'resize'){
+    const dx = p.x - state.anchor.x, dy = p.y - state.anchor.y;
+    const localX = dx*state.u.x + dy*state.u.y;
+    const localY = dx*state.v.x + dy*state.v.y;
+    let newScale = Math.hypot(localX, localY) / state.diag;
+    newScale = Math.max(0.01, newScale);
+    const nhw = state.rqw * newScale / 2;
+    const nhh = state.rqh * newScale / 2;
+    const Cx = state.anchor.x + state.u.x*nhw + state.v.x*nhh;
+    const Cy = state.anchor.y + state.u.y*nhw + state.v.y*nhh;
+    state.settings.scale = newScale;
+    state.settings.x = Math.round(Cx - nhw);
+    state.settings.y = Math.round(Cy - nhh);
+    syncInputsFromSettings();
+  }else if(state.dragMode === 'crop'){
+    const r = state.cropRef, sc = state.settings;
+    const scale = r.scale;
+    // 鼠标点投影到以初始中心为原点的局部（未旋转）坐标系，统一处理旋转
+    const lx = (p.x - r.cx)*r.cos + (p.y - r.cy)*r.sin;
+    const ly = -(p.x - r.cx)*r.sin + (p.y - r.cy)*r.cos;
+
+    if(state.cropEdge === 'cl'){
+      // 左边缘裁剪：右边缘中点固定
+      let newW = r.w0/2 - lx;
+      let nL = r.naturalWidth - r.cropR - newW/scale;
+      nL = clamp(nL, 0, r.naturalWidth - r.cropR - 2);
+      newW = (r.naturalWidth - nL - r.cropR)*scale;
+      const cx1 = r.cx + r.cos*(r.w0 - newW)/2;
+      const cy1 = r.cy + r.sin*(r.w0 - newW)/2;
+      sc.crop.l = Math.round(nL);
+      sc.x = Math.round(cx1 - newW/2);
+      sc.y = Math.round(cy1 - r.h0/2);
+    }else if(state.cropEdge === 'cr'){
+      // 右边缘裁剪：左边缘中点固定
+      let newW = r.w0/2 + lx;
+      let nR = r.naturalWidth - r.cropL - newW/scale;
+      nR = clamp(nR, 0, r.naturalWidth - r.cropL - 2);
+      newW = (r.naturalWidth - r.cropL - nR)*scale;
+      const cx1 = r.cx + r.cos*(newW - r.w0)/2;
+      const cy1 = r.cy + r.sin*(newW - r.w0)/2;
+      sc.crop.r = Math.round(nR);
+      sc.x = Math.round(cx1 - newW/2);
+      sc.y = Math.round(cy1 - r.h0/2);
+    }else if(state.cropEdge === 'ct'){
+      // 上边缘裁剪：下边缘中点固定
+      let newH = r.h0/2 - ly;
+      let nT = r.naturalHeight - r.cropB - newH/scale;
+      nT = clamp(nT, 0, r.naturalHeight - r.cropB - 2);
+      newH = (r.naturalHeight - nT - r.cropB)*scale;
+      const cx1 = r.cx + r.sin*(newH - r.h0)/2;
+      const cy1 = r.cy + r.cos*(r.h0 - newH)/2;
+      sc.crop.t = Math.round(nT);
+      sc.x = Math.round(cx1 - r.w0/2);
+      sc.y = Math.round(cy1 - newH/2);
+    }else if(state.cropEdge === 'cb'){
+      // 下边缘裁剪：上边缘中点固定
+      let newH = r.h0/2 + ly;
+      let nB = r.naturalHeight - r.cropT - newH/scale;
+      nB = clamp(nB, 0, r.naturalHeight - r.cropT - 2);
+      newH = (r.naturalHeight - nB - r.cropT)*scale;
+      const cx1 = r.cx + r.sin*(r.h0 - newH)/2;
+      const cy1 = r.cy + r.cos*(newH - r.h0)/2;
+      sc.crop.b = Math.round(nB);
+      sc.x = Math.round(cx1 - r.w0/2);
+      sc.y = Math.round(cy1 - newH/2);
+    }
+    syncCropInputs();
+  }
+  renderPreview();
+});
+
+function cancelDrag(){
+  if(!state.dragging) return;
+  state.dragging = false;
+  state.dragMode = null;
+  state.dragFixedId = null;
+  state.cropEdge = null;
+  state.cropRef = null;
+  canvas.style.cursor = 'default';
+  updateStageInfo();
+}
+
+window.addEventListener('mouseup', cancelDrag);
+// 防止拖拽到窗口外松开 / 失焦后「粘住」：统一复位拖拽状态
+window.addEventListener('blur', cancelDrag);
+document.addEventListener('mouseleave', cancelDrag);
+canvas.addEventListener('pointercancel', cancelDrag);
+
+/* 悬停光标 */
+canvas.addEventListener('mousemove', (e)=>{
+  if(state.dragging) return;
+  if(!state.baseImg){ canvas.style.cursor='default'; return; }
+  const p = toImageCoords(e);
+  const qr = currentQR();
+
+  // 固定二维码手柄
+  const selFixed = selectedFixedQR();
+  if(selFixed && hitTestFixedHandle(p, selFixed)){ canvas.style.cursor='nwse-resize'; return; }
+
+  // 动态二维码手柄
+  if(qr && pointInDynamicQR(p)){
+    const b = getDynamicBox();
+    const H = localToImg(b, b.w/2, b.h/2);
+    const th = 16 / getDispScale();
+    if(Math.hypot(p.x-H.x, p.y-H.y) <= th){ canvas.style.cursor='nwse-resize'; return; }
+    const edges = [{pt:localToImg(b,-b.w/2,0)},{pt:localToImg(b,b.w/2,0)},{pt:localToImg(b,0,-b.h/2)},{pt:localToImg(b,0,b.h/2)}];
+    for(const ep of edges){ if(Math.hypot(p.x-ep.pt.x,p.y-ep.pt.y)<=th){ canvas.style.cursor='move'; return; } }
+    canvas.style.cursor='grab';
+    return;
+  }
+
+  // 固定二维码
+  for(let i=state.fixedQRs.length-1;i>=0;i--){
+    if(pointInFixedQR(p, state.fixedQRs[i])){ canvas.style.cursor='grab'; return; }
+  }
+  canvas.style.cursor='default';
+});
+
+/* ===================== 输入同步 ===================== */
+function syncInputsFromSettings(){
+  xInput.value = state.settings.x;
+  yInput.value = state.settings.y;
+  scaleInput.value = Math.round(state.settings.scale * 100);
+  rotInput.value = state.settings.rot;
+  cropLInput.value = state.settings.crop.l;
+  cropTInput.value = state.settings.crop.t;
+  cropRInput.value = state.settings.crop.r;
+  cropBInput.value = state.settings.crop.b;
+}
+
+function syncCropInputs(){
+  cropLInput.value = state.settings.crop.l;
+  cropTInput.value = state.settings.crop.t;
+  cropRInput.value = state.settings.crop.r;
+  cropBInput.value = state.settings.crop.b;
+}
+
+function applyInputsToSettings(){
+  state.settings.x = parseInt(xInput.value, 10) || 0;
+  state.settings.y = parseInt(yInput.value, 10) || 0;
+  state.settings.scale = Math.max(0.01, (parseInt(scaleInput.value,10)||100)/100);
+  state.settings.rot = parseInt(rotInput.value, 10) || 0;
+  if(clampDynamicPos()) syncInputsFromSettings(); // 越界时回写输入框
+  renderPreview();
+  updateStageInfo();
+}
+
+[xInput, yInput, scaleInput, rotInput, cropLInput, cropTInput, cropRInput, cropBInput].forEach(inp=>{
+  inp.addEventListener('input', ()=>{
+    const qr = currentQR();
+    if(qr){
+      const nw = qr.img.naturalWidth, nh = qr.img.naturalHeight;
+      // 上下界双向 clamp，避免手输超大值把二维码压成 1px
+      state.settings.crop.l = clamp(parseInt(cropLInput.value,10)||0, 0, nw - state.settings.crop.r - 2);
+      state.settings.crop.r = clamp(parseInt(cropRInput.value,10)||0, 0, nw - state.settings.crop.l - 2);
+      state.settings.crop.t = clamp(parseInt(cropTInput.value,10)||0, 0, nh - state.settings.crop.b - 2);
+      state.settings.crop.b = clamp(parseInt(cropBInput.value,10)||0, 0, nh - state.settings.crop.t - 2);
+    }else{
+      state.settings.crop.l = Math.max(0, parseInt(cropLInput.value,10)||0);
+      state.settings.crop.t = Math.max(0, parseInt(cropTInput.value,10)||0);
+      state.settings.crop.r = Math.max(0, parseInt(cropRInput.value,10)||0);
+      state.settings.crop.b = Math.max(0, parseInt(cropBInput.value,10)||0);
+    }
+    applyInputsToSettings();
+  });
+});
+
+// 动态二维码方向键微调按钮（仅 X/Y）
+document.querySelectorAll('button[data-act]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const act = btn.dataset.act;
+    if(act==='x-') state.settings.x -= 1;
+    if(act==='x+') state.settings.x += 1;
+    if(act==='y-') state.settings.y -= 1;
+    if(act==='y+') state.settings.y += 1;
+    clampDynamicPos();
+    syncInputsFromSettings();
+    renderPreview();
+    updateStageInfo();
+  });
+});
+
+// 动态二维码裁剪微调
+document.querySelectorAll('button[data-crop]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const qr = currentQR();
+    if(!qr) return;
+    const act = btn.dataset.crop;
+    const c = state.settings.crop;
+    const qw = qr.img.naturalWidth, qh = qr.img.naturalHeight;
+    if(act==='l-') c.l = Math.max(0, c.l-1);
+    if(act==='l+') c.l = Math.min(qw - c.r - 2, c.l+1);
+    if(act==='r-') c.r = Math.max(0, c.r-1);
+    if(act==='r+') c.r = Math.min(qw - c.l - 2, c.r+1);
+    if(act==='t-') c.t = Math.max(0, c.t-1);
+    if(act==='t+') c.t = Math.min(qh - c.b - 2, c.t+1);
+    if(act==='b-') c.b = Math.max(0, c.b-1);
+    if(act==='b+') c.b = Math.min(qh - c.t - 2, c.b+1);
+    syncCropInputs();
+    renderPreview();
+    updateStageInfo();
+  });
+});
+
+$('resetBtn').addEventListener('click', ()=>{
+  centerQR();
+  syncInputsFromSettings();
+  renderPreview();
+  updateStageInfo();
+  toast('已重置到居中位置。', 'ok');
+});
+
+$('resetCropBtn').addEventListener('click', ()=>{
+  state.settings.crop = {l:0,t:0,r:0,b:0};
+  syncCropInputs();
+  renderPreview();
+  updateStageInfo();
+  toast('已重置动态二维码剪裁。', 'ok');
+});
+
+/* ===================== 键盘方向键微调 ===================== */
+window.addEventListener('keydown', (e)=>{
+  const keyMap = { ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0] };
+  if(!keyMap[e.key]) return;
+  if(e.target.tagName==='INPUT' || e.target.tagName==='TEXTAREA') return; // 输入框内不拦截
+  e.preventDefault();
+  const [dx, dy] = keyMap[e.key];
+  if(state.selectedFixedId){
+    const fq = selectedFixedQR();
+    if(fq){ fq.x += dx; fq.y += dy; clampFixedPos(fq); syncFixedInputs(); }
+  }else if(currentQR()){
+    state.settings.x += dx;
+    state.settings.y += dy;
+    clampDynamicPos();
+    syncInputsFromSettings();
+  }
+  renderPreview();
+  updateStageInfo();
+});
+
+/* ===================== 预览缩放 ===================== */
+function applyZoom(){
+  const s = getDispScale();
+  canvas.style.width = (canvas.width * s) + 'px';
+  canvas.style.height = (canvas.height * s) + 'px';
+  zoomLabel.textContent = Math.round(s*100) + '%';
+}
+
+function fitToScreen(){
+  if(!state.baseImg) return;
+  const wrap = canvasWrap.parentElement;
+  const padding = 40;
+  const availW = wrap.clientWidth - padding, availH = wrap.clientHeight - padding - 60;
+  const s = Math.min(1, availW / state.baseImg.naturalWidth, availH / state.baseImg.naturalHeight);
+  zoomRange.value = Math.max(5, Math.round(s * 100));
+  applyZoom();
+}
+
+// 窗口尺寸变化时自适应（防抖，避免频繁触发）
+let resizeTimer = null;
+window.addEventListener('resize', ()=>{
+  if(resizeTimer) clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(()=>{
+    if(state.baseImg) fitToScreen();
+    renderPreview();
+  }, 200);
+});
+
+zoomRange.addEventListener('input', applyZoom);
+$('zoomIn').addEventListener('click', ()=>{ zoomRange.value = Math.min(300, parseInt(zoomRange.value,10)+10); applyZoom(); });
+$('zoomOut').addEventListener('click', ()=>{ zoomRange.value = Math.max(5, parseInt(zoomRange.value,10)-10); applyZoom(); });
+$('zoomFit').addEventListener('click', fitToScreen);
+canvasWrap.addEventListener('wheel', (e)=>{
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? -5 : 5;
+  zoomRange.value = clamp(parseInt(zoomRange.value,10) + delta, 5, 300);
+  applyZoom();
+}, { passive:false });
+
+/* ===================== 拖拽上传 ===================== */
+canvasWrap.addEventListener('dragover', (e)=>{ e.preventDefault(); canvasWrap.classList.add('drag-over'); });
+canvasWrap.addEventListener('dragleave', ()=> canvasWrap.classList.remove('drag-over'));
+canvasWrap.addEventListener('drop', (e)=>{
+  e.preventDefault();
+  canvasWrap.classList.remove('drag-over');
+  const files = Array.from(e.dataTransfer.files || []);
+  const img = files.find(f => f.type.startsWith('image/'));
+  if(img) setBaseFile(img);
+});
+
+/* ===================== 状态文案 ===================== */
+function updateStageInfo(){
+  if(!state.baseImg){ stageInfo.textContent='请先上传底图与二维码，然后在画布上拖动二维码进行摆放。'; return; }
+  const qr = currentQR();
+  const fixed = selectedFixedQR();
+  let s = `底图 ${state.baseImg.naturalWidth}×${state.baseImg.naturalHeight}`;
+  if(qr) s += ` ｜ 动态 #${state.currentIdx+1}/${state.qrFiles.length}「${qr.name}」位置(${state.settings.x},${state.settings.y})`;
+  if(fixed) s += ` ｜ 已选中固定「${fixed.name}」位置(${fixed.x},${fixed.y})`;
+  stageInfo.textContent = s;
+}
+
+/* ===================== 导出与 ZIP ===================== */
+let editLockCount = 0;
+function setEditLocked(locked){
+  editLockCount = Math.max(0, editLockCount + (locked ? 1 : -1));
+  const isLocked = editLockCount > 0;
+  const btns = [addDynamicBtn, addFixedBtn, $('clearQrBtn'), $('clearFixedBtn'), $('resetBtn'), $('resetCropBtn'), $('resetFixedCropBtn')];
+  btns.forEach(b=>{ if(b) b.disabled = isLocked; });
+  [baseInput, qrInput, fixedInput].forEach(i=>{ if(i) i.disabled = isLocked; });
+  canvas.style.pointerEvents = isLocked ? 'none' : 'auto';
+}
+
+function canvasToBlob(cv, mime, quality){
+  return new Promise(resolve => cv.toBlob(resolve, mime, quality));
+}
+
+function extForMime(mime){
+  if(mime === 'image/jpeg') return 'jpg';
+  if(mime === 'image/webp') return 'webp';
+  return 'png';
+}
+
+function uniqueName(name, seen){
+  if(!seen.has(name)){ seen.add(name); return name; }
+  const m = name.match(/^(.*)\.(.*?)$/);
+  const base = m ? m[1] : name, ext = m ? '.'+m[2] : '';
+  let n = 2, candidate = `${base} (${n})${ext}`;
+  while(seen.has(candidate)){ n++; candidate = `${base} (${n})${ext}`; }
+  seen.add(candidate);
+  return candidate;
+}
+
+const CRC_TABLE = (()=>{
+  const t = new Uint32Array(256);
+  for(let i=0;i<256;i++){ let c=i; for(let k=0;k<8;k++) c = (c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[i]=c; }
+  return t;
+})();
+
+async function crc32(data){
+  let crc = 0xFFFFFFFF;
+  const CHUNK = 1024 * 1024; // 每 1MB 让出一次事件循环，避免大文件阻塞 UI
+  for(let i=0;i<data.length;i+=CHUNK){
+    const end = Math.min(i + CHUNK, data.length);
+    for(let j=i;j<end;j++) crc = CRC_TABLE[(crc^data[j])&0xFF] ^ (crc>>>8);
+    await sleep(0);
+  }
+  return (crc^0xFFFFFFFF) >>> 0;
+}
+
+async function buildZip(files, onProgress){
+  const enc = new TextEncoder();
+  const blobParts = [];
+  const central = [];
+  let offset = 0;
+  const FLAGS = 0x0800;
+  for(let i=0;i<files.length;i++){
+    const f = files[i];
+    const nameBytes = enc.encode(f.name);
+    // 逐个读取数据仅用于计算 CRC 与长度，读完即释放，避免全量驻留内存
+    const data = new Uint8Array(await f.blob.arrayBuffer());
+    const crc = await crc32(data);
+    const local = new Uint8Array(30 + nameBytes.length);
+    const lv = new DataView(local.buffer);
+    lv.setUint32(0, 0x04034b50, true);
+    lv.setUint16(4, 20, true);
+    lv.setUint16(6, FLAGS, true);
+    lv.setUint16(8, 0, true);
+    lv.setUint16(10, 0, true); lv.setUint16(12, 0, true);
+    lv.setUint32(14, crc, true);
+    lv.setUint32(18, data.length, true);
+    lv.setUint32(22, data.length, true);
+    lv.setUint16(26, nameBytes.length, true);
+    lv.setUint16(28, 0, true);
+    local.set(nameBytes, 30);
+    blobParts.push(local, f.blob); // 直接用原始 blob，不再二次复制 data
+    f._crc = crc; f._size = data.length; f._offset = offset;
+    offset += local.length + data.length;
+    if(i % 5 === 0){ if(onProgress) onProgress(i+1, files.length); await sleep(0); }
+  }
+  for(let i=0;i<files.length;i++){
+    const f = files[i];
+    const nameBytes = enc.encode(f.name);
+    const cen = new Uint8Array(46 + nameBytes.length);
+    const cv = new DataView(cen.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
+    cv.setUint16(8, FLAGS, true);
+    cv.setUint16(10, 0, true); cv.setUint16(12, 0, true); cv.setUint16(14, 0, true);
+    cv.setUint32(16, f._crc, true);
+    cv.setUint32(20, f._size, true); cv.setUint32(24, f._size, true);
+    cv.setUint16(28, nameBytes.length, true); cv.setUint16(30, 0, true); cv.setUint16(32, 0, true);
+    cv.setUint16(34, 0, true); cv.setUint16(36, 0, true); cv.setUint32(38, 0, true);
+    cv.setUint32(42, f._offset, true);
+    cen.set(nameBytes, 46);
+    central.push(cen);
+  }
+  const centralSize = central.reduce((s,c)=>s+c.length,0);
+  const end = new Uint8Array(22);
+  const ev = new DataView(end.buffer);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(4, 0, true); ev.setUint16(6, 0, true);
+  ev.setUint16(8, files.length, true); ev.setUint16(10, files.length, true);
+  ev.setUint32(12, centralSize, true); ev.setUint32(16, offset, true); ev.setUint16(20, 0, true);
+
+  // 合并为 Blob，避免大数组
+  central.forEach(c => blobParts.push(c));
+  blobParts.push(end);
+  return new Blob(blobParts, { type:'application/zip' });
+}
+
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=> URL.revokeObjectURL(url), 2000);
+}
+
+exportBtn.addEventListener('click', async ()=>{
+  if(!state.baseImg){ toast('请先上传底图。', 'warn'); return; }
+  if(state.qrFiles.length===0){ toast('请先上传动态二维码。', 'warn'); return; }
+
+  exportBtn.disabled = true;
+  exportProg.style.display = 'block';
+  exportBar.style.width = '0%';
+  exportText.textContent = '准备导出…';
+  overviewBtn.disabled = true;
+  setEditLocked(true);
+  showLoading('正在批量合成…');
+
+  try{
+    const files = [];
+    const total = state.qrFiles.length;
+    const quality = state.baseMime === 'image/jpeg' ? 0.99 : (state.baseMime === 'image/webp' ? 0.99 : undefined);
+    const seen = new Set();
+
+    for(let i=0;i<total;i++){
+      const entry = state.qrFiles[i];
+      exportText.textContent = `合成中 ${i+1} / ${total}：${entry.name}`;
+      exportBar.style.width = Math.round((i/total)*100) + '%';
+
+      const cv = document.createElement('canvas');
+      cv.width  = state.baseImg.naturalWidth;
+      cv.height = state.baseImg.naturalHeight;
+      const c = cv.getContext('2d');
+      c.drawImage(state.baseImg, 0, 0);
+      state.fixedQRs.forEach(fq => drawFixedQR(c, fq));
+      drawQR(c, entry.img, state.settings);
+
+      const blob = await canvasToBlob(cv, state.baseMime, quality);
+      if(!blob) throw new Error('canvas 导出失败：' + entry.name);
+      // 文件名后缀统一对齐实际编码格式（底图格式），避免 .jpg 实为 PNG 之类错配
+      const outName = entry.name.replace(/\.(jpe?g|png|webp|bmp|gif)$/i, '.' + extForMime(state.baseMime));
+      files.push({ name: uniqueName(outName, seen), blob });
+      if(i % 5 === 0) await sleep(0);
+    }
+
+    exportBar.style.width = '95%';
+    exportText.textContent = '正在打包 ZIP…';
+    const zipBlob = await buildZip(files, (done,total)=>{ exportText.textContent = `打包中 ${done}/${total}`; });
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const stamp = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    downloadBlob(zipBlob, `二维码合成结果-${stamp}.zip`);
+
+    exportBar.style.width = '100%';
+    exportText.textContent = `完成！共导出 ${total} 张图片。`;
+    toast(`导出完成，共 ${total} 张。`, 'ok');
+  }catch(err){
+    console.error(err);
+    toast('导出失败：' + (err.message||err), 'error');
+  }finally{
+    hideLoading();
+    setTimeout(()=> exportProg.style.display='none', 1500);
+    exportBtn.disabled = false;
+    overviewBtn.disabled = false;
+    setEditLocked(false);
+  }
+});
+
+/* ===================== 缩略图总览 ===================== */
+$('overviewBtn').addEventListener('click', async ()=>{
+  if(!state.baseImg || state.qrFiles.length===0){ toast('请先上传底图和动态二维码。', 'warn'); return; }
+  overviewBtn.disabled = true;
+  showLoading('正在生成缩略图总览…');
+  overviewGrid.innerHTML = '';
+  overviewModal.classList.add('show');
+
+  try{
+    const bw = state.baseImg.naturalWidth, bh = state.baseImg.naturalHeight;
+    const tw = 160;
+    const th = Math.round(tw * bh / bw);
+    const frag = document.createDocumentFragment();
+
+    for(let i=0;i<state.qrFiles.length;i++){
+      const entry = state.qrFiles[i];
+      const cv = document.createElement('canvas');
+      cv.width = tw; cv.height = th;
+      const c = cv.getContext('2d');
+      c.drawImage(state.baseImg, 0, 0, tw, th);
+      c.save();
+      c.scale(tw/bw, th/bh);
+      state.fixedQRs.forEach(fq => drawFixedQR(c, fq));
+      drawQR(c, entry.img, state.settings);
+      c.restore();
+
+      const cell = document.createElement('div');
+      cell.className = 'overview-cell';
+      const thumb = document.createElement('div'); thumb.className='thumb';
+      const img = document.createElement('img');
+      img.src = cv.toDataURL('image/png');
+      img.alt = entry.name;
+      thumb.appendChild(img);
+      const cap = document.createElement('div'); cap.className='cap'; cap.textContent = `${i+1}. ${entry.name}`;
+      cell.appendChild(thumb); cell.appendChild(cap);
+      frag.appendChild(cell);
+      if(i % 20 === 0){ await sleep(0); }
+    }
+    overviewGrid.appendChild(frag);
+  }catch(err){
+    toast('缩略图生成失败：' + err.message, 'error');
+  }finally{
+    hideLoading();
+    overviewBtn.disabled = false;
+  }
+});
+
+function hideOverview(){ overviewModal.classList.remove('show'); overviewGrid.innerHTML=''; }
+overviewClose.addEventListener('click', hideOverview);
+overviewModal.addEventListener('click', (e)=>{ if(e.target === overviewModal) hideOverview(); });
+window.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && overviewModal.classList.contains('show')) hideOverview(); });
+
+/* ===================== 初始化 ===================== */
+function init(){
+  applyZoom();
+  renderPreview();
+  updateStageInfo();
+}
+init();
+</script>
+</body>
+</html>
