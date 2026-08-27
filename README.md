@@ -1,15 +1,15 @@
 # 图片二维码合成工具 · Image QR Code Composer
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0-blue.svg)](https://github.com/liyulai1990/Qr-image-composer/releases/tag/v2.0)
-[![Online Demo](https://img.shields.io/badge/demo-online-brightgreen.svg)](https://liyulai1990.github.io/Qr-image-composer/)
+[![Version](https://img.shields.io/badge/version-2.0-blue.svg)](https://github.com/Locallabstide/Qr-image-composer/releases/tag/v2.0)
+[![Online Demo](https://img.shields.io/badge/demo-online-brightgreen.svg)](https://Locallabstide.github.io/Qr-image-composer/)
 
 > 纯前端、零依赖、可离线的图片二维码合成工具。把二维码图片批量合成到海报 / 底图上，支持拖拽、缩放、旋转、四边裁剪，一键导出 ZIP。
 >
 > A pure-frontend, zero-dependency, offline-capable tool to composite QR-code images onto posters / base images. Drag, scale, rotate, crop, and batch-export to ZIP.
 
-🌐 **在线体验 / Live Demo**：https://liyulai1990.github.io/Qr-image-composer/
-🔗 仓库地址 / Repo：https://github.com/liyulai1990/Qr-image-composer
+🌐 **在线体验 / Live Demo**：https://Locallabstide.github.io/Qr-image-composer/
+🔗 仓库地址 / Repo：https://github.com/Locallabstide/Qr-image-composer
 
 ![界面预览](screenshot.png)
 
@@ -30,7 +30,7 @@
 
 ## 🚀 快速开始 / Quick Start
 
-1. 打开 [在线体验](https://liyulai1990.github.io/Qr-image-composer/)，或下载 `index.html` 双击运行。
+1. 打开 [在线体验](https://Locallabstide.github.io/Qr-image-composer/)，或下载 `index.html` 双击运行。
 2. 上传底图，再导入一张或多张二维码图片。
 3. 通过右侧面板或直接在画布上拖拽、缩放、旋转、裁剪，摆好位置。
 4. 点击「批量导出」，生成 `二维码合成结果-YYYYMMDD-HHMMSS.zip`。
