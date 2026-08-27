@@ -1,6 +1,11 @@
 # 图片二维码合成工具
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-2.0-blue.svg)](https://github.com/liyulai1990/Qr-image-composer/releases/tag/v2.0)
+
 纯前端、本地运行的图片二维码合成工具。把二维码图片（动态 / 固定）合成到底图上，支持位置、缩放、旋转、四边裁剪与拖拽，并可批量导出为 ZIP。
+
+🔗 仓库地址：https://github.com/liyulai1990/Qr-image-composer
 
 ## 特性
 
